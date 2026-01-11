@@ -1,6 +1,5 @@
-"use client";
-
 import { cn } from "@/lib/utils";
+import { Check } from "lucide-react";
 
 interface QuestionCardProps {
     question: {
@@ -15,56 +14,68 @@ interface QuestionCardProps {
 
 export function QuestionCard({ question, value, onChange }: QuestionCardProps) {
     // 1 to 7 scale
-    // 1 = Left (Green), 7 = Right (Purple), 4 = Neutral (Gray)
-    // Sizes: 1 & 7 = Large, 2 & 6 = Medium, 3 & 5 = Small, 4 = Smallest
+    // 1-3 = Left (Green), 5-7 = Right (Purple), 4 = Neutral (Gray)
     const options = [1, 2, 3, 4, 5, 6, 7];
 
     const getSizeClass = (val: number) => {
         const dist = Math.abs(val - 4); // Distance from center (0 to 3)
         switch (dist) {
-            case 3: return "w-12 h-12"; // 1 & 7
-            case 2: return "w-10 h-10"; // 2 & 6
-            case 1: return "w-8 h-8";   // 3 & 5
-            case 0: return "w-6 h-6";   // 4
-            default: return "w-6 h-6";
+            case 3: return "w-14 h-14"; // 1 & 7
+            case 2: return "w-12 h-12"; // 2 & 6
+            case 1: return "w-10 h-10";   // 3 & 5
+            case 0: return "w-8 h-8";   // 4
+            default: return "w-8 h-8";
         }
     };
 
-    const getColorClass = (val: number, isSelected: boolean) => {
-        if (!isSelected) return "bg-muted hover:bg-muted-foreground/20";
+    const getBaseColorClass = (val: number) => {
+        if (val < 4) return "border-emerald-400 text-emerald-600"; // Green side
+        if (val > 4) return "border-violet-400 text-violet-600";   // Purple side
+        return "border-gray-400 text-gray-600";                    // Neutral
+    };
 
-        if (val < 4) return "bg-emerald-400 border-emerald-500"; // Green side
-        if (val > 4) return "bg-violet-400 border-violet-500";   // Purple side
-        return "bg-gray-400 border-gray-500";                    // Neutral
+    const getSelectedColorClass = (val: number) => {
+        if (val < 4) return "bg-emerald-500 border-emerald-500 text-white"; // Green side
+        if (val > 4) return "bg-violet-500 border-violet-500 text-white";   // Purple side
+        return "bg-gray-500 border-gray-500 text-white";                    // Neutral
     };
 
     return (
-        <div className="space-y-4 py-4">
-            <h3 className="text-lg font-medium text-center mb-6">{question.text}</h3>
+        <div className="space-y-6 py-6">
+            <h3 className="text-xl font-bold text-center mb-8 text-foreground/90">{question.text}</h3>
 
-            <div className="flex justify-between items-center px-2 text-sm font-medium text-muted-foreground mb-2">
-                <span className="text-emerald-600">{question.leftLabel}</span>
-                <span className="text-violet-600">{question.rightLabel}</span>
+            <div className="flex justify-between items-center px-4 text-base font-bold mb-4">
+                <span className="text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
+                    {question.leftLabel}
+                </span>
+                <span className="text-violet-600 bg-violet-50 px-3 py-1 rounded-full border border-violet-200">
+                    {question.rightLabel}
+                </span>
             </div>
 
-            <div className="flex justify-between items-center relative px-2">
+            <div className="flex justify-between items-center relative px-4 py-2">
                 {/* Connecting line */}
-                <div className="absolute left-0 right-0 top-1/2 h-0.5 bg-muted -z-10" />
+                <div className="absolute left-4 right-4 top-1/2 h-1 bg-muted -z-10 rounded-full" />
 
-                {options.map((opt) => (
-                    <button
-                        key={opt}
-                        type="button"
-                        onClick={() => onChange(opt)}
-                        className={cn(
-                            "rounded-full border-2 transition-all duration-200 flex items-center justify-center shadow-sm",
-                            getSizeClass(opt),
-                            getColorClass(opt, value === opt),
-                            value === opt ? "scale-110 ring-2 ring-offset-2 ring-offset-background" : "border-transparent"
-                        )}
-                        aria-label={`選択肢 ${opt}`}
-                    />
-                ))}
+                {options.map((opt) => {
+                    const isSelected = value === opt;
+                    return (
+                        <button
+                            key={opt}
+                            type="button"
+                            onClick={() => onChange(opt)}
+                            className={cn(
+                                "rounded-full border-2 transition-all duration-300 flex items-center justify-center shadow-sm bg-background hover:scale-110",
+                                getSizeClass(opt),
+                                isSelected ? getSelectedColorClass(opt) : getBaseColorClass(opt),
+                                isSelected ? "ring-4 ring-offset-2 ring-offset-background scale-110 shadow-md" : "hover:border-opacity-80"
+                            )}
+                            aria-label={`選択肢 ${opt}`}
+                        >
+                            {isSelected && <Check className="w-6 h-6 stroke-[3]" />}
+                        </button>
+                    );
+                })}
             </div>
         </div>
     );

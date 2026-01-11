@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, User, MessageCircle, Lock, ArrowRight, ArrowLeft } from "lucide-react";
 
 interface AnswerFormProps {
     groupId: string;
@@ -24,17 +24,19 @@ interface AnswerFormProps {
         leftLabel: string;
         rightLabel: string;
     }[];
+    initialAnswers?: Record<string, number>;
+    initialEditPassword?: string;
 }
 
-export function AnswerForm({ groupId, memberId, memberName, questions }: AnswerFormProps) {
+export function AnswerForm({ groupId, memberId, memberName, questions, initialAnswers = {}, initialEditPassword = "" }: AnswerFormProps) {
     const router = useRouter();
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const form = useForm<AnswerSchema>({
         resolver: zodResolver(answerSchema),
         defaultValues: {
-            answers: {},
-            editPassword: "",
+            answers: initialAnswers,
+            editPassword: initialEditPassword,
         },
     });
 
@@ -64,14 +66,36 @@ export function AnswerForm({ groupId, memberId, memberName, questions }: AnswerF
 
     return (
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 max-w-2xl mx-auto py-10 px-4">
-            <div className="space-y-2 text-center">
-                <h1 className="text-2xl font-bold text-primary">{memberName} さんの回答</h1>
-                <p className="text-muted-foreground">
-                    直感で答えてください。考えすぎないのがコツです。
-                </p>
+            <div className="space-y-4 text-center">
+                <div className="flex justify-start">
+                    <Button variant="ghost" asChild className="text-muted-foreground hover:text-foreground">
+                        <a href={`/g/${groupId}`}>
+                            <ArrowLeft className="mr-2 h-4 w-4" /> グループページに戻る
+                        </a>
+                    </Button>
+                </div>
+                <div>
+                    <h1 className="text-2xl font-bold text-foreground flex items-center justify-center gap-2">
+                        <span className="bg-teal-100 text-teal-600 p-2 rounded-lg">
+                            <User className="w-6 h-6" />
+                        </span>
+                        {memberName} さんの回答
+                    </h1>
+                    <p className="text-muted-foreground mt-2">
+                        直感で答えてください。考えすぎないのがコツです。
+                    </p>
+                </div>
             </div>
 
-            <Card>
+            <Card className="border-l-4 border-l-purple-400 shadow-sm">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-xl">
+                        <span className="bg-purple-100 text-purple-600 p-2 rounded-lg">
+                            <MessageCircle className="w-5 h-5" />
+                        </span>
+                        価値観の質問
+                    </CardTitle>
+                </CardHeader>
                 <CardContent className="divide-y">
                     {questions.map((q) => (
                         <Controller
@@ -90,37 +114,54 @@ export function AnswerForm({ groupId, memberId, memberName, questions }: AnswerF
                 </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-l-4 border-l-orange-400 shadow-sm">
                 <CardHeader>
-                    <CardTitle>送信前の確認</CardTitle>
+                    <CardTitle className="flex items-center gap-2 text-xl">
+                        <span className="bg-orange-100 text-orange-600 p-2 rounded-lg">
+                            <Lock className="w-5 h-5" />
+                        </span>
+                        送信前の確認
+                    </CardTitle>
                     <CardDescription>
                         回答を後で修正するために、6桁の数字パスワードを設定（または入力）してください。
                     </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-6">
                     <div className="space-y-2">
                         <Label htmlFor="editPassword">編集用パスワード (6桁の数字)</Label>
-                        <Input
-                            id="editPassword"
-                            type="password"
-                            inputMode="numeric"
-                            maxLength={6}
-                            placeholder="123456"
-                            {...form.register("editPassword")}
-                            className="text-center text-lg tracking-widest"
-                            autoComplete="off"
-                        />
+                        <div className="relative">
+                            <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                id="editPassword"
+                                type="password"
+                                inputMode="numeric"
+                                maxLength={6}
+                                placeholder="（数字6桁）"
+                                {...form.register("editPassword")}
+                                className="pl-9 text-center text-lg tracking-widest placeholder:text-muted-foreground/50 placeholder:tracking-normal"
+                                autoComplete="off"
+                            />
+                        </div>
                         {form.formState.errors.editPassword && (
-                            <p className="text-sm text-destructive">{form.formState.errors.editPassword.message}</p>
+                            <p className="text-sm font-bold text-red-500 flex items-center gap-1">
+                                <span>⚠️</span> {form.formState.errors.editPassword.message}
+                            </p>
                         )}
                     </div>
-                    <Button type="submit" className="w-full" size="lg" disabled={isSubmitting}>
+                    <Button
+                        type="submit"
+                        className="w-full text-lg h-14 shadow-xl hover:shadow-2xl transition-all bg-gradient-to-r from-orange-500 to-pink-600 hover:from-orange-600 hover:to-pink-700 text-white font-bold rounded-xl transform hover:-translate-y-1"
+                        size="lg"
+                        disabled={isSubmitting}
+                    >
                         {isSubmitting ? (
                             <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 送信中...
+                                <Loader2 className="mr-2 h-6 w-6 animate-spin" /> 送信中...
                             </>
                         ) : (
-                            "回答を送信する"
+                            <>
+                                回答を送信する <ArrowRight className="ml-2 h-6 w-6" />
+                            </>
                         )}
                     </Button>
                 </CardContent>

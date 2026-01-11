@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { verifyGroupPassword } from "@/lib/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,16 @@ export function PasswordGate({ groupId, children }: PasswordGateProps) {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [password, setPassword] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    const [isChecking, setIsChecking] = useState(true);
+
+    // Check session storage on mount
+    useEffect(() => {
+        const storedAuth = sessionStorage.getItem(`travel-app-auth-${groupId}`);
+        if (storedAuth === "true") {
+            setIsAuthenticated(true);
+        }
+        setIsChecking(false);
+    }, [groupId]);
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
@@ -26,6 +36,7 @@ export function PasswordGate({ groupId, children }: PasswordGateProps) {
             const result = await verifyGroupPassword(groupId, password);
             if (result.success) {
                 setIsAuthenticated(true);
+                sessionStorage.setItem(`travel-app-auth-${groupId}`, "true");
                 toast.success("認証に成功しました");
             } else {
                 toast.error(result.error || "パスワードが間違っています");
@@ -35,6 +46,10 @@ export function PasswordGate({ groupId, children }: PasswordGateProps) {
         } finally {
             setIsLoading(false);
         }
+    }
+
+    if (isChecking) {
+        return null; // Or a loading spinner if preferred
     }
 
     if (isAuthenticated) {

@@ -1,5 +1,5 @@
 import { getGroupData } from "@/lib/actions";
-import { AnswerForm } from "@/components/answer-form";
+import { AnswerPageClient } from "@/components/answer-page-client";
 import { notFound, redirect } from "next/navigation";
 
 interface PageProps {
@@ -21,7 +21,7 @@ export default async function AnswerPage({ params, searchParams }: PageProps) {
         notFound();
     }
 
-    const member = group.members.find((m: { id: string; name: string }) => m.id === memberId);
+    const member = group.members.find((m: { id: string; name: string; status: string }) => m.id === memberId);
 
     if (!member) {
         notFound();
@@ -29,10 +29,11 @@ export default async function AnswerPage({ params, searchParams }: PageProps) {
 
     return (
         <div className="min-h-screen bg-background">
-            <AnswerForm
+            <AnswerPageClient
                 groupId={groupId}
                 memberId={memberId}
                 memberName={member.name}
+                memberStatus={member.status}
                 questions={group.questions}
             />
         </div>

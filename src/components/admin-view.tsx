@@ -1,119 +1,29 @@
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { addMember, deleteMember, updateMemberName } from "@/lib/actions";
 import { ResultsChart } from "@/components/results-chart";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Trash2, Plus, ArrowLeft, Settings, BarChart3, Users, User, Pencil, Loader2, AlertTriangle } from "lucide-react";
-import { toast } from "sonner";
+import { ArrowLeft, Settings, BarChart3, Users, User, Pencil, Trash2, Plus } from "lucide-react";
+import { AddMemberDialog, RenameMemberDialog, DeleteMemberDialog } from "@/components/admin-member-dialogs";
+import { Group } from "@/types";
 
 interface AdminViewProps {
-    group: {
-        id: string;
-        name: string;
-        description: string;
-        questions: {
-            id: string;
-            text: string;
-            leftLabel: string;
-            rightLabel: string;
-        }[];
-        members: {
-            id: string;
-            name: string;
-            status: string;
-            answers?: Record<string, number>;
-        }[];
-    };
+    group: Group;
 }
 
 export function AdminView({ group }: AdminViewProps) {
-    const router = useRouter();
-    const [isLoading, setIsLoading] = useState(false);
 
     // Dialog states
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [isRenameOpen, setIsRenameOpen] = useState(false);
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
-    // Form states
-    const [newMemberName, setNewMemberName] = useState("");
+    // Selected member state
     const [selectedMember, setSelectedMember] = useState<{ id: string, name: string } | null>(null);
-
-    async function handleAddMember(e: React.FormEvent) {
-        e.preventDefault();
-        if (!newMemberName.trim()) return;
-
-        setIsLoading(true);
-        try {
-            const result = await addMember(group.id, newMemberName);
-            if (result.success) {
-                toast.success("メンバーを追加しました");
-                setNewMemberName("");
-                setIsAddOpen(false);
-                router.refresh();
-            } else {
-                toast.error(result.error || "追加に失敗しました");
-            }
-        } catch {
-            toast.error("エラーが発生しました");
-        } finally {
-            setIsLoading(false);
-        }
-    }
-
-    async function handleRenameMember(e: React.FormEvent) {
-        e.preventDefault();
-        if (!selectedMember || !newMemberName.trim()) return;
-
-        setIsLoading(true);
-        try {
-            const result = await updateMemberName(group.id, selectedMember.id, newMemberName);
-            if (result.success) {
-                toast.success("名前を変更しました");
-                setNewMemberName("");
-                setSelectedMember(null);
-                setIsRenameOpen(false);
-                router.refresh();
-            } else {
-                toast.error(result.error || "変更に失敗しました");
-            }
-        } catch {
-            toast.error("エラーが発生しました");
-        } finally {
-            setIsLoading(false);
-        }
-    }
-
-    async function handleDeleteMember() {
-        if (!selectedMember) return;
-
-        setIsLoading(true);
-        try {
-            const result = await deleteMember(group.id, selectedMember.id);
-            if (result.success) {
-                toast.success("メンバーを削除しました");
-                setSelectedMember(null);
-                setIsDeleteOpen(false);
-                router.refresh();
-            } else {
-                toast.error(result.error || "削除に失敗しました");
-            }
-        } catch {
-            toast.error("エラーが発生しました");
-        } finally {
-            setIsLoading(false);
-        }
-    }
 
     const openRenameDialog = (member: { id: string, name: string }) => {
         setSelectedMember(member);
-        setNewMemberName(member.name);
         setIsRenameOpen(true);
     };
 
@@ -240,10 +150,7 @@ export function AdminView({ group }: AdminViewProps) {
                                 <Button
                                     variant="outline"
                                     className="w-full border-dashed border-2 hover:border-teal-400 hover:text-teal-600 hover:bg-teal-50"
-                                    onClick={() => {
-                                        setNewMemberName("");
-                                        setIsAddOpen(true);
-                                    }}
+                                    onClick={() => setIsAddOpen(true)}
                                 >
                                     <Plus className="h-4 w-4 mr-2" /> メンバーを追加
                                 </Button>
@@ -253,97 +160,25 @@ export function AdminView({ group }: AdminViewProps) {
                 </TabsContent>
             </Tabs>
 
-            {/* Add Member Dialog */}
-            <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>メンバーを追加</DialogTitle>
-                        <DialogDescription>
-                            新しいメンバーの名前を入力してください。
-                        </DialogDescription>
-                    </DialogHeader>
-                    <form onSubmit={handleAddMember}>
-                        <div className="grid gap-4 py-4">
-                            <div className="grid gap-2">
-                                <Label htmlFor="name">名前</Label>
-                                <Input
-                                    id="name"
-                                    value={newMemberName}
-                                    onChange={(e) => setNewMemberName(e.target.value)}
-                                    placeholder="山田 太郎"
-                                    autoComplete="off"
-                                />
-                            </div>
-                        </div>
-                        <DialogFooter>
-                            <Button type="submit" disabled={isLoading || !newMemberName.trim()}>
-                                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "追加する"}
-                            </Button>
-                        </DialogFooter>
-                    </form>
-                </DialogContent>
-            </Dialog>
+            <AddMemberDialog
+                groupId={group.id}
+                open={isAddOpen}
+                onOpenChange={setIsAddOpen}
+            />
 
-            {/* Rename Member Dialog */}
-            <Dialog open={isRenameOpen} onOpenChange={setIsRenameOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>名前を変更</DialogTitle>
-                        <DialogDescription>
-                            メンバーの名前を修正します。
-                        </DialogDescription>
-                    </DialogHeader>
-                    <form onSubmit={handleRenameMember}>
-                        <div className="grid gap-4 py-4">
-                            <div className="grid gap-2">
-                                <Label htmlFor="rename">名前</Label>
-                                <Input
-                                    id="rename"
-                                    value={newMemberName}
-                                    onChange={(e) => setNewMemberName(e.target.value)}
-                                    placeholder="山田 太郎"
-                                    autoComplete="off"
-                                />
-                            </div>
-                        </div>
-                        <DialogFooter>
-                            <Button type="submit" disabled={isLoading || !newMemberName.trim()}>
-                                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "変更する"}
-                            </Button>
-                        </DialogFooter>
-                    </form>
-                </DialogContent>
-            </Dialog>
+            <RenameMemberDialog
+                groupId={group.id}
+                member={selectedMember}
+                open={isRenameOpen}
+                onOpenChange={setIsRenameOpen}
+            />
 
-            {/* Delete Member Dialog */}
-            <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle className="text-red-600 flex items-center gap-2">
-                            <AlertTriangle className="h-5 w-5" />
-                            メンバーを削除
-                        </DialogTitle>
-                        <DialogDescription>
-                            本当に <strong>{selectedMember?.name}</strong> を削除してもよろしいですか？<br />
-                            この操作は取り消せません。回答データも完全に削除されます。
-                        </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter className="gap-2 sm:gap-0">
-                        <Button type="button" variant="outline" onClick={() => setIsDeleteOpen(false)} disabled={isLoading}>
-                            キャンセル
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="destructive"
-                            onClick={handleDeleteMember}
-                            disabled={isLoading}
-                            className="bg-red-600 hover:bg-red-700 text-white font-bold"
-                        >
-                            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "削除実行"}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            <DeleteMemberDialog
+                groupId={group.id}
+                member={selectedMember}
+                open={isDeleteOpen}
+                onOpenChange={setIsDeleteOpen}
+            />
         </div>
     );
 }

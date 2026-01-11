@@ -3,6 +3,8 @@
 import { db } from "@/lib/firebase";
 import { collection, addDoc } from "firebase/firestore";
 import { createGroupSchema, CreateGroupSchema } from "@/lib/schemas";
+import { Member } from "@/types";
+import { revalidatePath } from "next/cache";
 import crypto from "crypto";
 
 function hashPassword(password: string): string {
@@ -64,14 +66,7 @@ export async function verifyGroupPassword(groupId: string, password: string) {
     }
 }
 
-interface Member {
-    id: string;
-    name: string;
-    status: string;
-    editPassword?: string;
-    answers?: Record<string, number>;
-    updatedAt?: string;
-}
+
 
 export async function getGroupData(groupId: string) {
     try {
@@ -140,6 +135,7 @@ export async function submitAnswer(
         };
 
         await updateDoc(docRef, { members });
+        revalidatePath(`/g/${groupId}`);
 
         return { success: true };
     } catch (error) {
@@ -243,6 +239,7 @@ export async function addMember(groupId: string, memberName: string) {
         await updateDoc(docRef, {
             members: [...members, newMember],
         });
+        revalidatePath(`/g/${groupId}`);
 
         return { success: true };
     } catch (error) {
@@ -272,6 +269,7 @@ export async function deleteMember(groupId: string, memberId: string) {
         await updateDoc(docRef, {
             members: updatedMembers,
         });
+        revalidatePath(`/g/${groupId}`);
 
         return { success: true };
     } catch (error) {
@@ -302,6 +300,7 @@ export async function updateMemberName(groupId: string, memberId: string, newNam
         await updateDoc(docRef, {
             members: updatedMembers,
         });
+        revalidatePath(`/g/${groupId}`);
 
         return { success: true };
     } catch (error) {

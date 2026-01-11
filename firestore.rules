@@ -1,0 +1,24 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 1. グループ公開情報 & 回答データ
+    // URLを知っているユーザー(アプリ利用者)には情報の閲覧を許可する
+    match /groups/{groupId} {
+      allow read: if true; 
+      allow write: if false; // クライアントからの直接書き込みは一切禁止
+
+      match /answers/{answerId} {
+        allow read: if true;
+        allow write: if false; // クライアントからの直接書き込みは一切禁止
+      }
+
+      // 2. 【重要】機密情報 (Secrets)
+      // クライアントからは絶対に読み書きさせない (Black Box)
+      // Server Actions (Admin SDK) だけがアクセスできる
+      match /secrets/{document=**} {
+        allow read, write: if false;
+      }
+    }
+  }
+}

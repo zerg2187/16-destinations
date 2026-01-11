@@ -1,7 +1,6 @@
 "use server";
 
-import { db } from "@/lib/firebase";
-import { collection, addDoc } from "firebase/firestore";
+import { adminDb, adminAuth } from "@/lib/firebase-admin";
 import { createGroupSchema, CreateGroupSchema } from "@/lib/schemas";
 import { Member } from "@/types";
 import { revalidatePath } from "next/cache";
@@ -11,7 +10,7 @@ function hashPassword(password: string): string {
     return crypto.createHash("sha256").update(password).digest("hex");
 }
 
-export async function createGroup(data: CreateGroupSchema) {
+export async function createGroup(data: CreateGroupSchema, adminUid?: string) {
     const result = createGroupSchema.safeParse(data);
 
     if (!result.success) {
@@ -21,41 +20,68 @@ export async function createGroup(data: CreateGroupSchema) {
     const { name, description, groupPassword, adminPassword, questions, members } = result.data;
 
     try {
-        const docRef = await addDoc(collection(db, "groups"), {
+        // 1. Create Group Document (Public Data)
+        const groupRef = adminDb.collection("groups").doc();
+        const groupId = groupRef.id;
+
+        const groupData = {
             name,
             description,
-            groupPassword, // Stored as plain text per requirements ("simple_string")
-            adminPassword: hashPassword(adminPassword),
+            // NO PASSWORDS HERE
             questions: questions.map((q, index) => ({ ...q, id: `q${index + 1}` })),
             members: members.map((m) => ({
                 id: crypto.randomUUID(),
                 name: m.name,
                 status: "pending",
-                editPassword: "", // Will be set when they answer
+                // NO EDIT PASSWORD HERE
             })),
             createdAt: new Date().toISOString(),
+            expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(), // 90 days TTL
+            adminUid: adminUid || null,
+        };
+
+        await groupRef.set(groupData);
+
+        // 2. Create Secrets Document (Private Data)
+        const secretsRef = groupRef.collection("secrets").doc("admin_auth");
+        await secretsRef.set({
+            groupPassword, // Stored as plain text per requirements ("simple_string") - wait, requirements said simple string, but architecture doc says hash. 
+            // The user's architecture doc says: "groupPasswordHash": "hash_xxxx". 
+            // But the original requirement was "simple_string" for group password and hashed for admin.
+            // However, to be safe and consistent with "Secrets", I should probably hash them if the architecture doc implies it.
+            // The architecture doc example shows: "groupPasswordHash": "hash_xxxx".
+            // BUT, the `verifyGroupPassword` logic in the prompt compares `data.groupPassword !== password`.
+            // I will stick to the original logic for groupPassword (plain text) BUT put it in secrets, 
+            // OR if I strictly follow the "Server-Authoritative" doc, it says "groupPasswordHash".
+            // Let's look at the user's prompt again: "groupPasswordHash": "hash_xxxx".
+            // Okay, I will hash the group password too for better security since we are refactoring.
+            // Wait, if I hash it, I need to update verifyGroupPassword to hash the input before comparing.
+            // Let's do that. It's better security.
+            groupPasswordHash: hashPassword(groupPassword),
+            adminPasswordHash: hashPassword(adminPassword),
         });
 
-        return { success: true, groupId: docRef.id };
+        return { success: true, groupId };
     } catch (error) {
         console.error("Error creating group:", error);
         return { success: false, error: "グループの作成に失敗しました" };
     }
 }
 
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+// Removed client SDK imports
+// import { doc, getDoc, updateDoc } from "firebase/firestore";
 
 export async function verifyGroupPassword(groupId: string, password: string) {
     try {
-        const docRef = doc(db, "groups", groupId);
-        const docSnap = await getDoc(docRef);
+        const secretsRef = adminDb.collection("groups").doc(groupId).collection("secrets").doc("admin_auth");
+        const secretsSnap = await secretsRef.get();
 
-        if (!docSnap.exists()) {
+        if (!secretsSnap.exists) {
             return { success: false, error: "グループが見つかりません" };
         }
 
-        const data = docSnap.data();
-        if (data.groupPassword !== password) {
+        const data = secretsSnap.data();
+        if (data?.groupPasswordHash !== hashPassword(password)) {
             return { success: false, error: "パスワードが間違っています" };
         }
 
@@ -70,10 +96,10 @@ export async function verifyGroupPassword(groupId: string, password: string) {
 
 export async function getGroupData(groupId: string) {
     try {
-        const docRef = doc(db, "groups", groupId);
-        const docSnap = await getDoc(docRef);
+        const docRef = adminDb.collection("groups").doc(groupId);
+        const docSnap = await docRef.get();
 
-        if (!docSnap.exists()) {
+        if (!docSnap.exists) {
             return null;
         }
 
@@ -81,10 +107,10 @@ export async function getGroupData(groupId: string) {
         // Return only necessary public data
         return {
             id: docSnap.id,
-            name: data.name,
-            description: data.description,
-            questions: data.questions,
-            members: data.members.map((m: Member) => ({
+            name: data?.name,
+            description: data?.description,
+            questions: data?.questions,
+            members: data?.members.map((m: Member) => ({
                 id: m.id,
                 name: m.name,
                 status: m.status,
@@ -100,18 +126,19 @@ export async function submitAnswer(
     groupId: string,
     memberId: string,
     answers: Record<string, number>,
-    editPassword: string
+    editPassword: string,
+    idToken?: string
 ) {
     try {
-        const docRef = doc(db, "groups", groupId);
-        const docSnap = await getDoc(docRef);
+        const groupRef = adminDb.collection("groups").doc(groupId);
+        const groupSnap = await groupRef.get();
 
-        if (!docSnap.exists()) {
+        if (!groupSnap.exists) {
             return { success: false, error: "グループが見つかりません" };
         }
 
-        const groupData = docSnap.data();
-        const members = groupData.members || [];
+        const groupData = groupSnap.data();
+        const members = groupData?.members || [];
         const memberIndex = members.findIndex((m: Member) => m.id === memberId);
 
         if (memberIndex === -1) {
@@ -119,22 +146,76 @@ export async function submitAnswer(
         }
 
         const member = members[memberIndex];
+        let authorIdToSave = member.authorId || null;
+        let isAuthorized = false;
 
-        // Check password if already set
-        if (member.editPassword && member.editPassword !== hashPassword(editPassword)) {
-            return { success: false, error: "編集用パスワードが間違っています" };
+        // 1. Verify Token if provided
+        let verifiedUid: string | null = null;
+        if (idToken) {
+            try {
+                const decodedToken = await adminAuth.verifyIdToken(idToken);
+                verifiedUid = decodedToken.uid;
+            } catch (e) {
+                console.warn("Token verification failed", e);
+            }
         }
 
-        // Update member status and password (if not set)
+        // Auth Check (Secrets)
+        const memberAuthRef = groupRef.collection("secrets").doc(`member_auth_${memberId}`);
+        const memberAuthSnap = await memberAuthRef.get();
+
+        if (memberAuthSnap.exists) {
+            // Existing answer/auth
+            // If token matches existing authorId, allow
+            if (verifiedUid && member.authorId === verifiedUid) {
+                isAuthorized = true;
+            } else {
+                // Verify password
+                const authData = memberAuthSnap.data();
+                if (authData?.editPasswordHash !== hashPassword(editPassword)) {
+                    return { success: false, error: "編集用パスワードが間違っています" };
+                }
+                isAuthorized = true;
+            }
+        } else {
+            // First time submission
+            // Password is REQUIRED for first time to set it up
+            if (!editPassword) {
+                return { success: false, error: "パスワードを設定してください" };
+            }
+
+            await memberAuthRef.set({
+                editPasswordHash: hashPassword(editPassword),
+            });
+
+            // Set authorId if verified
+            if (verifiedUid) {
+                authorIdToSave = verifiedUid;
+            }
+            isAuthorized = true;
+        }
+
+        if (!isAuthorized) {
+            return { success: false, error: "認証に失敗しました" };
+        }
+
+        // Save Answer (Subcollection)
+        const answerRef = groupRef.collection("answers").doc(memberId);
+        await answerRef.set({
+            uid: authorIdToSave,
+            values: answers,
+            updatedAt: new Date().toISOString(),
+        });
+
+        // Update Member Status (Public Doc)
         members[memberIndex] = {
             ...member,
             status: "completed",
-            editPassword: member.editPassword || hashPassword(editPassword),
-            answers, // Store answers directly on the member object for simplicity in this schema
             updatedAt: new Date().toISOString(),
+            authorId: authorIdToSave,
         };
 
-        await updateDoc(docRef, { members });
+        await groupRef.update({ members });
         revalidatePath(`/g/${groupId}`);
 
         return { success: true };
@@ -144,73 +225,141 @@ export async function submitAnswer(
     }
 }
 
-export async function verifyAdminPassword(groupId: string, password: string) {
+export async function verifyAdminPassword(groupId: string, password?: string, idToken?: string) {
     try {
-        const docRef = doc(db, "groups", groupId);
-        const docSnap = await getDoc(docRef);
+        const groupRef = adminDb.collection("groups").doc(groupId);
 
-        if (!docSnap.exists()) {
+        // 1. Fetch public group data first to check adminUid
+        const groupSnap = await groupRef.get();
+        if (!groupSnap.exists) {
             return { success: false, error: "グループが見つかりません" };
         }
+        const groupData = groupSnap.data();
 
-        const data = docSnap.data();
-        if (data.adminPassword !== hashPassword(password)) {
-            return { success: false, error: "パスワードが間違っています" };
+        let isAuthorized = false;
+
+        // 2. Try Token Authentication
+        if (idToken && groupData?.adminUid) {
+            try {
+                const decodedToken = await adminAuth.verifyIdToken(idToken);
+                if (decodedToken.uid === groupData.adminUid) {
+                    isAuthorized = true;
+                }
+            } catch (e) {
+                console.warn("Token verification failed", e);
+            }
         }
 
-        return { success: true };
+        // 3. Try Password Authentication (if not already authorized)
+        if (!isAuthorized) {
+            if (!password) {
+                return { success: false, error: "パスワードが必要です" };
+            }
+            const secretsRef = groupRef.collection("secrets").doc("admin_auth");
+            const secretsSnap = await secretsRef.get();
+            const secretsData = secretsSnap.data();
+
+            if (secretsData?.adminPasswordHash === hashPassword(password)) {
+                isAuthorized = true;
+            } else {
+                return { success: false, error: "パスワードが間違っています" };
+            }
+        }
+
+        // Authorized! Fetch all data.
+        const members = (groupData?.members || []) as Member[];
+
+        // Fetch answers from subcollection
+        const answersSnap = await groupRef.collection("answers").get();
+        const answersMap = new Map();
+        answersSnap.forEach((doc) => {
+            answersMap.set(doc.id, doc.data().values);
+        });
+
+        // Merge answers into members
+        const membersWithAnswers = members.map((m) => ({
+            ...m,
+            answers: answersMap.get(m.id) || {},
+        }));
+
+        const fullGroupData = {
+            id: groupSnap.id,
+            name: groupData?.name,
+            description: groupData?.description,
+            questions: groupData?.questions,
+            members: membersWithAnswers,
+            adminUid: groupData?.adminUid,
+            createdAt: groupData?.createdAt,
+            expiresAt: groupData?.expiresAt,
+        };
+
+        return { success: true, group: fullGroupData };
     } catch (error) {
         console.error("Error verifying admin password:", error);
         return { success: false, error: "エラーが発生しました" };
     }
 }
 
-export async function getAdminGroupData(groupId: string) {
+
+
+export async function verifyEditPassword(groupId: string, memberId: string, password?: string, idToken?: string) {
     try {
-        const docRef = doc(db, "groups", groupId);
-        const docSnap = await getDoc(docRef);
+        const groupRef = adminDb.collection("groups").doc(groupId);
 
-        if (!docSnap.exists()) {
-            return null;
-        }
-
-        const data = docSnap.data();
-        // Return ALL data for admin
-        return {
-            id: docSnap.id,
-            name: data.name,
-            description: data.description,
-            questions: data.questions,
-            members: data.members as Member[], // Includes answers and editPasswords
-        };
-    } catch (error) {
-        console.error("Error fetching admin group data:", error);
-        return null;
-    }
-}
-
-export async function verifyEditPassword(groupId: string, memberId: string, password: string) {
-    try {
-        const docRef = doc(db, "groups", groupId);
-        const docSnap = await getDoc(docRef);
-
-        if (!docSnap.exists()) {
+        // 1. Fetch public group data to check authorId
+        const groupSnap = await groupRef.get();
+        if (!groupSnap.exists) {
             return { success: false, error: "グループが見つかりません" };
         }
-
-        const groupData = docSnap.data();
-        const members = groupData.members || [];
-        const member = members.find((m: Member) => m.id === memberId);
+        const groupData = groupSnap.data();
+        const members = (groupData?.members || []) as Member[];
+        const member = members.find((m) => m.id === memberId);
 
         if (!member) {
             return { success: false, error: "メンバーが見つかりません" };
         }
 
-        if (member.editPassword !== hashPassword(password)) {
-            return { success: false, error: "パスワードが間違っています" };
+        let isAuthorized = false;
+
+        // 2. Try Token Authentication
+        if (idToken && member.authorId) {
+            try {
+                const decodedToken = await adminAuth.verifyIdToken(idToken);
+                if (decodedToken.uid === member.authorId) {
+                    isAuthorized = true;
+                }
+            } catch (e) {
+                console.warn("Token verification failed", e);
+            }
         }
 
-        return { success: true, answers: member.answers || {} };
+        // 3. Try Password Authentication
+        if (!isAuthorized) {
+            if (!password) {
+                return { success: false, error: "パスワードが必要です" };
+            }
+            const authDocRef = groupRef.collection("secrets").doc(`member_auth_${memberId}`);
+            const authDocSnap = await authDocRef.get();
+
+            if (authDocSnap.exists) {
+                const authData = authDocSnap.data();
+                if (authData?.editPasswordHash === hashPassword(password)) {
+                    isAuthorized = true;
+                } else {
+                    return { success: false, error: "パスワードが間違っています" };
+                }
+            } else {
+                // If no auth doc exists (legacy or error), fail safe
+                return { success: false, error: "認証データが見つかりません" };
+            }
+        }
+
+        // Authorized! Fetch answers.
+        const answerDocRef = groupRef.collection("answers").doc(memberId);
+        const answerDocSnap = await answerDocRef.get();
+        const currentAnswers = answerDocSnap.exists ? answerDocSnap.data()?.values : {};
+
+        return { success: true, answers: currentAnswers };
     } catch (error) {
         console.error("Error verifying edit password:", error);
         return { success: false, error: "エラーが発生しました" };
@@ -219,24 +368,23 @@ export async function verifyEditPassword(groupId: string, memberId: string, pass
 
 export async function addMember(groupId: string, memberName: string) {
     try {
-        const docRef = doc(db, "groups", groupId);
-        const docSnap = await getDoc(docRef);
+        const groupRef = adminDb.collection("groups").doc(groupId);
+        const groupSnap = await groupRef.get();
 
-        if (!docSnap.exists()) {
+        if (!groupSnap.exists) {
             return { success: false, error: "グループが見つかりません" };
         }
 
-        const groupData = docSnap.data();
-        const members = groupData.members || [];
+        const groupData = groupSnap.data();
+        const members = groupData?.members || [];
 
         const newMember = {
             id: crypto.randomUUID(),
             name: memberName,
             status: "pending",
-            editPassword: "",
         };
 
-        await updateDoc(docRef, {
+        await groupRef.update({
             members: [...members, newMember],
         });
         revalidatePath(`/g/${groupId}`);
@@ -250,15 +398,15 @@ export async function addMember(groupId: string, memberName: string) {
 
 export async function deleteMember(groupId: string, memberId: string) {
     try {
-        const docRef = doc(db, "groups", groupId);
-        const docSnap = await getDoc(docRef);
+        const groupRef = adminDb.collection("groups").doc(groupId);
+        const groupSnap = await groupRef.get();
 
-        if (!docSnap.exists()) {
+        if (!groupSnap.exists) {
             return { success: false, error: "グループが見つかりません" };
         }
 
-        const groupData = docSnap.data();
-        const members = groupData.members || [];
+        const groupData = groupSnap.data();
+        const members = groupData?.members || [];
 
         if (members.length <= 1) {
             return { success: false, error: "メンバーが1人のため削除できません" };
@@ -266,7 +414,7 @@ export async function deleteMember(groupId: string, memberId: string) {
 
         const updatedMembers = members.filter((m: Member) => m.id !== memberId);
 
-        await updateDoc(docRef, {
+        await groupRef.update({
             members: updatedMembers,
         });
         revalidatePath(`/g/${groupId}`);
@@ -280,15 +428,15 @@ export async function deleteMember(groupId: string, memberId: string) {
 
 export async function updateMemberName(groupId: string, memberId: string, newName: string) {
     try {
-        const docRef = doc(db, "groups", groupId);
-        const docSnap = await getDoc(docRef);
+        const groupRef = adminDb.collection("groups").doc(groupId);
+        const groupSnap = await groupRef.get();
 
-        if (!docSnap.exists()) {
+        if (!groupSnap.exists) {
             return { success: false, error: "グループが見つかりません" };
         }
 
-        const groupData = docSnap.data();
-        const members = groupData.members || [];
+        const groupData = groupSnap.data();
+        const members = groupData?.members || [];
 
         const updatedMembers = members.map((m: Member) => {
             if (m.id === memberId) {
@@ -297,7 +445,7 @@ export async function updateMemberName(groupId: string, memberId: string, newNam
             return m;
         });
 
-        await updateDoc(docRef, {
+        await groupRef.update({
             members: updatedMembers,
         });
         revalidatePath(`/g/${groupId}`);

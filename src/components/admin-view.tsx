@@ -10,9 +10,10 @@ import { Group } from "@/types";
 
 interface AdminViewProps {
     group: Group;
+    onRefresh: () => void;
 }
 
-export function AdminView({ group }: AdminViewProps) {
+export function AdminView({ group, onRefresh }: AdminViewProps) {
 
     // Dialog states
     const [isAddOpen, setIsAddOpen] = useState(false);
@@ -56,9 +57,19 @@ export function AdminView({ group }: AdminViewProps) {
             </div>
 
             <Tabs defaultValue="results" className="space-y-6">
-                <TabsList className="grid w-full grid-cols-2 max-w-[400px]">
-                    <TabsTrigger value="results">集計結果</TabsTrigger>
-                    <TabsTrigger value="members">メンバー管理</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-2 max-w-[400px] h-auto p-1 bg-muted/50 rounded-xl">
+                    <TabsTrigger
+                        value="results"
+                        className="rounded-lg py-3 text-base font-bold data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-md transition-all"
+                    >
+                        集計結果
+                    </TabsTrigger>
+                    <TabsTrigger
+                        value="members"
+                        className="rounded-lg py-3 text-base font-bold data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-md transition-all"
+                    >
+                        メンバー管理
+                    </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="results" className="space-y-6">
@@ -72,7 +83,6 @@ export function AdminView({ group }: AdminViewProps) {
                             </CardTitle>
                             <CardDescription>
                                 メンバー全員の回答の平均値とばらつき（標準偏差）を表示しています。
-                                横棒が平均、ヒゲがばらつきを表します。
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -164,6 +174,7 @@ export function AdminView({ group }: AdminViewProps) {
                 groupId={group.id}
                 open={isAddOpen}
                 onOpenChange={setIsAddOpen}
+                onRefresh={onRefresh}
             />
 
             <RenameMemberDialog
@@ -171,6 +182,7 @@ export function AdminView({ group }: AdminViewProps) {
                 member={selectedMember}
                 open={isRenameOpen}
                 onOpenChange={setIsRenameOpen}
+                onRefresh={onRefresh}
             />
 
             <DeleteMemberDialog
@@ -178,6 +190,7 @@ export function AdminView({ group }: AdminViewProps) {
                 member={selectedMember}
                 open={isDeleteOpen}
                 onOpenChange={setIsDeleteOpen}
+                onRefresh={onRefresh}
             />
         </div>
     );

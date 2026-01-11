@@ -7,16 +7,77 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ShieldCheck, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { AdminView } from "@/components/admin-view";
+import { Group } from "@/types";
 
 interface AdminGateProps {
     groupId: string;
-    children: React.ReactNode;
 }
 
-export function AdminGate({ groupId, children }: AdminGateProps) {
+import { auth } from "@/lib/firebase";
+import { useEffect } from "react";
+
+export function AdminGate({ groupId }: AdminGateProps) {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [password, setPassword] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+    const [groupData, setGroupData] = useState<Group | null>(null);
+
+    useEffect(() => {
+        const checkAuth = async () => {
+            const user = auth.currentUser;
+            if (user) {
+                try {
+                    const token = await user.getIdToken();
+                    const result = await verifyAdminPassword(groupId, "", token);
+                    if (result.success && result.group) {
+                        setGroupData(result.group as Group);
+                        setIsAuthenticated(true);
+                        toast.success("管理者として自動認証されました");
+                    }
+                } catch (e) {
+                    console.error("Auto-auth failed", e);
+                }
+            }
+            setIsCheckingAuth(false);
+        };
+
+        // Wait for auth to initialize if needed, but usually onAuthStateChanged fires quickly.
+        // If auth.currentUser is null, we might want to wait for onAuthStateChanged first event?
+        // Actually, onAuthStateChanged fires with null if not logged in.
+
+        const unsubscribe = auth.onAuthStateChanged(async (user) => {
+            if (user) {
+                await checkAuth();
+            } else {
+                setIsCheckingAuth(false);
+            }
+        });
+        return () => unsubscribe();
+    }, [groupId]);
+
+    async function refreshData() {
+        if (!password && !isAuthenticated) return; // If authenticated via token, password is empty
+
+        // If authenticated, we can just fetch without password if we have token?
+        // But refreshData logic in previous step used verifyAdminPassword(groupId, password).
+        // If auto-authed, password is "".
+        // So we need to use token again for refresh?
+        // Yes.
+
+        const user = auth.currentUser;
+        const token = user ? await user.getIdToken() : undefined;
+
+        try {
+            const result = await verifyAdminPassword(groupId, password, token);
+            if (result.success && result.group) {
+                setGroupData(result.group as Group);
+            }
+        } catch (error) {
+            console.error("Failed to refresh data", error);
+        }
+    }
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
@@ -24,7 +85,8 @@ export function AdminGate({ groupId, children }: AdminGateProps) {
 
         try {
             const result = await verifyAdminPassword(groupId, password);
-            if (result.success) {
+            if (result.success && result.group) {
+                setGroupData(result.group as Group);
                 setIsAuthenticated(true);
                 toast.success("管理者認証に成功しました");
             } else {
@@ -37,8 +99,16 @@ export function AdminGate({ groupId, children }: AdminGateProps) {
         }
     }
 
-    if (isAuthenticated) {
-        return <>{children}</>;
+    if (isCheckingAuth) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+            </div>
+        );
+    }
+
+    if (isAuthenticated && groupData) {
+        return <AdminView group={groupData} onRefresh={refreshData} />;
     }
 
     return (

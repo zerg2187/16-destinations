@@ -1,24 +1,29 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { M_PLUS_Rounded_1c } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const mPlusRounded = M_PLUS_Rounded_1c({
+  weight: ["100", "300", "400", "500", "700", "800", "900"],
   subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  variable: "--font-m-plus-rounded",
 });
 
 export const metadata: Metadata = {
-  title: "Travel Values Survey",
-  description: "Group travel planning made easy with values visualization.",
+  title: {
+    template: "%s | 16Destinations",
+    default: "16Destinations",
+  },
+  description: "MBTI診断みたいなノリで、旅行の方向性を決めるアンケートを作れるメーカーです。",
+  openGraph: {
+    type: "website",
+    locale: "ja_JP",
+    siteName: "16Destinations",
+  },
 };
 
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { AuthProvider } from "@/components/auth-provider";
 
 export default function RootLayout({
   children,
@@ -28,7 +33,7 @@ export default function RootLayout({
   return (
     <html lang="ja" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${mPlusRounded.className} antialiased`}
       >
         <ThemeProvider
           attribute="class"
@@ -36,7 +41,9 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
+          <AuthProvider>
+            {children}
+          </AuthProvider>
           <Toaster />
         </ThemeProvider>
       </body>

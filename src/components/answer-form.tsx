@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { answerSchema, AnswerSchema } from "@/lib/schemas";
 import { submitAnswer } from "@/lib/actions";
+import { auth } from "@/lib/firebase";
 import { QuestionCard } from "@/components/question-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +32,7 @@ interface AnswerFormProps {
 export function AnswerForm({ groupId, memberId, memberName, questions, initialAnswers = {}, initialEditPassword = "" }: AnswerFormProps) {
     const router = useRouter();
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [unansweredIds, setUnansweredIds] = useState<string[]>([]);
 
     const form = useForm<AnswerSchema>({
         resolver: zodResolver(answerSchema),
@@ -40,17 +42,75 @@ export function AnswerForm({ groupId, memberId, memberName, questions, initialAn
         },
     });
 
+    // Handle validation errors (when onSubmit is not called)
+    const onInvalid = (errors: FieldErrors<AnswerSchema>) => {
+        const newUnansweredIds: string[] = [];
+
+        // Check for explicit validation errors in answers
+        if (errors.answers) {
+            questions.forEach((q) => {
+                if (errors.answers?.[q.id]) {
+                    newUnansweredIds.push(q.id);
+                }
+            });
+        }
+
+        // Also check for "missing" answers that might not have triggered a validation error 
+        // but are effectively unanswered (undefined/null) in the current form values.
+        const currentValues = form.getValues();
+        questions.forEach((q) => {
+            const val = currentValues.answers?.[q.id];
+            if ((val === undefined || val === null) && !newUnansweredIds.includes(q.id)) {
+                newUnansweredIds.push(q.id);
+            }
+        });
+
+        if (newUnansweredIds.length > 0) {
+            setUnansweredIds(newUnansweredIds);
+            toast.error("未回答の質問があります", {
+                description: "すべての質問に回答してください。",
+            });
+            const firstError = document.getElementById(`question-${newUnansweredIds[0]}`);
+            if (firstError) {
+                firstError.scrollIntoView({ behavior: "smooth", block: "center" });
+            }
+        } else if (errors.editPassword) {
+            toast.error("パスワードエラー", {
+                description: errors.editPassword.message as string,
+            });
+        }
+    };
+
     async function onSubmit(data: AnswerSchema) {
         // Validate that all questions are answered
-        const answeredCount = Object.keys(data.answers).length;
-        if (answeredCount < questions.length) {
-            toast.error("すべての質問に回答してください");
+        const currentUnansweredIds = questions
+            .filter((q) => {
+                const val = data.answers[q.id];
+                return val === undefined || val === null;
+            })
+            .map((q) => q.id);
+
+        if (currentUnansweredIds.length > 0) {
+            setUnansweredIds(currentUnansweredIds);
+            toast.error("未回答の質問があります", {
+                description: "すべての質問に回答してください。",
+            });
+            // Scroll to top or first error (optional, but good UX)
+            const firstError = document.getElementById(`question-${currentUnansweredIds[0]}`);
+            if (firstError) {
+                firstError.scrollIntoView({ behavior: "smooth", block: "center" });
+            }
             return;
         }
 
+        setUnansweredIds([]);
+
         setIsSubmitting(true);
         try {
-            const result = await submitAnswer(groupId, memberId, data.answers, data.editPassword);
+            const user = auth.currentUser;
+            const idToken = user ? await user.getIdToken() : undefined;
+            const result = await submitAnswer(groupId, memberId, data.answers, data.editPassword, idToken);
+
             if (result.success) {
                 toast.success("回答を送信しました！");
                 router.push(`/g/${groupId}`);
@@ -65,7 +125,7 @@ export function AnswerForm({ groupId, memberId, memberName, questions, initialAn
     }
 
     return (
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 max-w-2xl mx-auto py-10 px-4">
+        <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-8 max-w-2xl mx-auto py-10 px-4">
             <div className="space-y-4 text-center">
                 <div className="flex justify-start">
                     <Button variant="ghost" asChild className="text-muted-foreground hover:text-foreground">
@@ -103,11 +163,20 @@ export function AnswerForm({ groupId, memberId, memberName, questions, initialAn
                             control={form.control}
                             name={`answers.${q.id}`}
                             render={({ field }) => (
-                                <QuestionCard
-                                    question={q}
-                                    value={field.value}
-                                    onChange={field.onChange}
-                                />
+                                <div id={`question-${q.id}`}>
+                                    <QuestionCard
+                                        question={q}
+                                        value={field.value}
+                                        onChange={(val) => {
+                                            field.onChange(val);
+                                            // Clear error for this question if it was unanswered
+                                            if (unansweredIds.includes(q.id)) {
+                                                setUnansweredIds((prev) => prev.filter((id) => id !== q.id));
+                                            }
+                                        }}
+                                        error={unansweredIds.includes(q.id)}
+                                    />
+                                </div>
                             )}
                         />
                     ))}

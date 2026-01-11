@@ -4,6 +4,7 @@ import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { createGroupSchema, CreateGroupSchema } from "@/lib/schemas";
 import { createGroup } from "@/lib/actions";
+import { auth } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -46,7 +47,8 @@ export function CreateGroupForm() {
     async function onSubmit(data: CreateGroupSchema) {
         setIsSubmitting(true);
         try {
-            const result = await createGroup(data);
+            const adminUid = auth.currentUser?.uid;
+            const result = await createGroup(data, adminUid);
             if (result.success) {
                 toast.success("グループを作成しました！");
                 router.push(`/g/${result.groupId}`);

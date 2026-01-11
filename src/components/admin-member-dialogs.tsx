@@ -14,9 +14,10 @@ interface AddMemberDialogProps {
     groupId: string;
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    onRefresh: () => void;
 }
 
-export function AddMemberDialog({ groupId, open, onOpenChange }: AddMemberDialogProps) {
+export function AddMemberDialog({ groupId, open, onOpenChange, onRefresh }: AddMemberDialogProps) {
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
     const [name, setName] = useState("");
@@ -32,6 +33,7 @@ export function AddMemberDialog({ groupId, open, onOpenChange }: AddMemberDialog
                 toast.success("メンバーを追加しました");
                 setName("");
                 onOpenChange(false);
+                onRefresh();
                 router.refresh();
             } else {
                 toast.error(result.error || "追加に失敗しました");
@@ -81,9 +83,10 @@ interface RenameMemberDialogProps {
     member: { id: string; name: string } | null;
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    onRefresh: () => void;
 }
 
-export function RenameMemberDialog({ groupId, member, open, onOpenChange }: RenameMemberDialogProps) {
+export function RenameMemberDialog({ groupId, member, open, onOpenChange, onRefresh }: RenameMemberDialogProps) {
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
     const [name, setName] = useState(member?.name || "");
@@ -108,6 +111,7 @@ export function RenameMemberDialog({ groupId, member, open, onOpenChange }: Rena
             if (result.success) {
                 toast.success("名前を変更しました");
                 onOpenChange(false);
+                onRefresh();
                 router.refresh();
             } else {
                 toast.error(result.error || "変更に失敗しました");
@@ -157,9 +161,10 @@ interface DeleteMemberDialogProps {
     member: { id: string; name: string } | null;
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    onRefresh: () => void;
 }
 
-export function DeleteMemberDialog({ groupId, member, open, onOpenChange }: DeleteMemberDialogProps) {
+export function DeleteMemberDialog({ groupId, member, open, onOpenChange, onRefresh }: DeleteMemberDialogProps) {
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
 
@@ -172,6 +177,7 @@ export function DeleteMemberDialog({ groupId, member, open, onOpenChange }: Dele
             if (result.success) {
                 toast.success("メンバーを削除しました");
                 onOpenChange(false);
+                onRefresh();
                 router.refresh();
             } else {
                 toast.error(result.error || "削除に失敗しました");

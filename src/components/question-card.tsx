@@ -10,9 +10,10 @@ interface QuestionCardProps {
     };
     value: number | undefined;
     onChange: (value: number) => void;
+    error?: boolean;
 }
 
-export function QuestionCard({ question, value, onChange }: QuestionCardProps) {
+export function QuestionCard({ question, value, onChange, error }: QuestionCardProps) {
     // 1 to 7 scale
     // 1-3 = Left (Green), 5-7 = Right (Purple), 4 = Neutral (Gray)
     const options = [1, 2, 3, 4, 5, 6, 7];
@@ -20,11 +21,11 @@ export function QuestionCard({ question, value, onChange }: QuestionCardProps) {
     const getSizeClass = (val: number) => {
         const dist = Math.abs(val - 4); // Distance from center (0 to 3)
         switch (dist) {
-            case 3: return "w-14 h-14"; // 1 & 7
-            case 2: return "w-12 h-12"; // 2 & 6
-            case 1: return "w-10 h-10";   // 3 & 5
-            case 0: return "w-8 h-8";   // 4
-            default: return "w-8 h-8";
+            case 3: return "w-16 h-16 md:w-20 md:h-20"; // 1 & 7 (Largest)
+            case 2: return "w-14 h-14 md:w-16 md:h-16"; // 2 & 6
+            case 1: return "w-12 h-12 md:w-14 md:h-14"; // 3 & 5
+            case 0: return "w-10 h-10 md:w-12 md:h-12"; // 4 (Smallest, but still accessible)
+            default: return "w-10 h-10";
         }
     };
 
@@ -41,8 +42,11 @@ export function QuestionCard({ question, value, onChange }: QuestionCardProps) {
     };
 
     return (
-        <div className="space-y-6 py-6">
-            <h3 className="text-xl font-bold text-center mb-8 text-foreground/90">{question.text}</h3>
+        <div className={cn("space-y-6 py-6 rounded-lg transition-colors", error && "bg-red-50 border border-red-200")}>
+            <h3 className={cn("text-xl font-bold text-center mb-8 flex items-center justify-center gap-2 flex-wrap", error ? "text-red-600" : "text-foreground/90")}>
+                <span>{question.text}</span>
+                {error && <span className="text-sm font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded border border-red-200">未回答</span>}
+            </h3>
 
             <div className="flex justify-between items-center px-4 text-base font-bold mb-4">
                 <span className="text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
@@ -53,7 +57,7 @@ export function QuestionCard({ question, value, onChange }: QuestionCardProps) {
                 </span>
             </div>
 
-            <div className="flex justify-between items-center relative px-4 py-2">
+            <div className="flex justify-between items-center relative px-2 py-4 md:px-8">
                 {/* Connecting line */}
                 <div className="absolute left-4 right-4 top-1/2 h-1 bg-muted -z-10 rounded-full" />
 

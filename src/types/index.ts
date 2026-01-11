@@ -9,9 +9,10 @@ export interface Member {
     id: string;
     name: string;
     status: string; // "pending" | "completed"
-    editPassword?: string;
+    // editPassword removed - stored in secrets
     answers?: Record<string, number>;
     updatedAt?: string;
+    authorId?: string; // UID of the user who answered
 }
 
 export interface Group {
@@ -21,4 +22,7 @@ export interface Group {
     questions: Question[];
     members: Member[];
     createdAt?: string;
+    expiresAt?: string; // Firestore TTL
+    adminUid?: string; // UID of the group creator
+    // groupPassword and adminPassword removed - stored in secrets
 }

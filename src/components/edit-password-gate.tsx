@@ -16,9 +16,42 @@ interface EditPasswordGateProps {
     onVerified: (answers: Record<string, number>, password: string) => void;
 }
 
+import { auth } from "@/lib/firebase";
+import { useEffect } from "react";
+
 export function EditPasswordGate({ groupId, memberId, memberName, onVerified }: EditPasswordGateProps) {
     const [password, setPassword] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+
+    useEffect(() => {
+        const checkAuth = async () => {
+            const user = auth.currentUser;
+            if (user) {
+                try {
+                    const token = await user.getIdToken();
+                    const result = await verifyEditPassword(groupId, memberId, "", token);
+                    if (result.success && result.answers) {
+                        toast.success("自動認証されました");
+                        // Pass dummy password since we bypassed it with token
+                        onVerified(result.answers, "000000");
+                    }
+                } catch (e) {
+                    console.error("Auto-auth failed", e);
+                }
+            }
+            setIsCheckingAuth(false);
+        };
+
+        const unsubscribe = auth.onAuthStateChanged(async (user) => {
+            if (user) {
+                await checkAuth();
+            } else {
+                setIsCheckingAuth(false);
+            }
+        });
+        return () => unsubscribe();
+    }, [groupId, memberId, onVerified]);
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
@@ -37,6 +70,14 @@ export function EditPasswordGate({ groupId, memberId, memberName, onVerified }: 
         } finally {
             setIsLoading(false);
         }
+    }
+
+    if (isCheckingAuth) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+            </div>
+        );
     }
 
     return (

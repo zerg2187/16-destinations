@@ -34,7 +34,7 @@ export function CreateGroupForm() {
         },
     });
 
-    const { fields: questionFields, append: appendQuestion, remove: removeQuestion } = useFieldArray({
+    const { fields: questionFields, append: appendQuestion, remove: removeQuestion, insert: insertQuestion } = useFieldArray({
         control: form.control,
         name: "questions",
     });
@@ -236,66 +236,88 @@ export function CreateGroupForm() {
                         7段階で答えてもらう質問を設定します。左と右に対立する概念を入力してください。
                     </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent className="space-y-2">
                     {questionFields.map((field, index) => (
-                        <div key={field.id} className="p-4 border rounded-lg space-y-3 bg-muted/30 hover:bg-muted/50 transition-colors">
-                            <div className="flex justify-between items-center">
-                                <Label className="text-base font-semibold text-purple-700">質問 {index + 1}</Label>
-                                <Button
+                        <div key={field.id}>
+                            {/* 最初の質問の前に挿入ボタン */}
+                            {index === 0 && (
+                                <button
                                     type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => removeQuestion(index)}
-                                    disabled={questionFields.length <= 1}
-                                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                    onClick={() => insertQuestion(0, { text: "", leftLabel: "", rightLabel: "" })}
+                                    className="w-full py-2 mb-2 border-2 border-dashed border-transparent hover:border-purple-300 rounded-lg text-muted-foreground/50 hover:text-purple-500 transition-all flex items-center justify-center gap-1 text-sm group"
                                 >
-                                    <Trash2 className="h-4 w-4" />
-                                </Button>
-                            </div>
-                            <div className="space-y-1">
-                                <Input
-                                    {...form.register(`questions.${index}.text`)}
-                                    placeholder="質問内容 (例: 旅行のペースは？)"
-                                    className={`border-purple-200 focus-visible:ring-purple-400 placeholder:text-muted-foreground/30 ${form.formState.errors.questions?.[index]?.text ? "border-red-500 focus-visible:ring-red-500 bg-red-50" : ""}`}
-                                />
-                                {form.formState.errors.questions?.[index]?.text && (
-                                    <p className="text-xs font-bold text-red-500 flex items-center gap-1 pl-1">
-                                        <span>⚠️</span> {form.formState.errors.questions[index]?.text?.message}
-                                    </p>
-                                )}
-                            </div>
-                            <div className="grid grid-cols-2 gap-2 items-start">
+                                    <Plus className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    <span className="opacity-0 group-hover:opacity-100 transition-opacity">ここに質問を追加</span>
+                                </button>
+                            )}
+                            <div className="p-4 border rounded-lg space-y-3 bg-muted/30 hover:bg-muted/50 transition-colors">
+                                <div className="flex justify-between items-center">
+                                    <Label className="text-base font-semibold text-purple-700">質問 {index + 1}</Label>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => removeQuestion(index)}
+                                        disabled={questionFields.length <= 1}
+                                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </div>
                                 <div className="space-y-1">
-                                    <div className="relative flex-1">
-                                        <div className="absolute left-3 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-green-400" />
-                                        <Input
-                                            {...form.register(`questions.${index}.leftLabel`)}
-                                            placeholder="左: ゆったり"
-                                            className={`text-right pl-8 placeholder:text-muted-foreground/30 ${form.formState.errors.questions?.[index]?.leftLabel ? "border-red-500 focus-visible:ring-red-500 bg-red-50" : ""}`}
-                                        />
-                                    </div>
-                                    {form.formState.errors.questions?.[index]?.leftLabel && (
+                                    <Input
+                                        {...form.register(`questions.${index}.text`)}
+                                        placeholder="質問内容 (例: 旅行のペースは？)"
+                                        className={`border-purple-200 focus-visible:ring-purple-400 placeholder:text-muted-foreground/30 ${form.formState.errors.questions?.[index]?.text ? "border-red-500 focus-visible:ring-red-500 bg-red-50" : ""}`}
+                                    />
+                                    {form.formState.errors.questions?.[index]?.text && (
                                         <p className="text-xs font-bold text-red-500 flex items-center gap-1 pl-1">
-                                            <span>⚠️</span> {form.formState.errors.questions[index]?.leftLabel?.message}
+                                            <span>⚠️</span> {form.formState.errors.questions[index]?.text?.message}
                                         </p>
                                     )}
                                 </div>
-                                <div className="space-y-1">
-                                    <div className="relative flex-1">
-                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-purple-400" />
-                                        <Input
-                                            {...form.register(`questions.${index}.rightLabel`)}
-                                            placeholder="右: 詰め込み"
-                                            className={`pr-8 placeholder:text-muted-foreground/30 ${form.formState.errors.questions?.[index]?.rightLabel ? "border-red-500 focus-visible:ring-red-500 bg-red-50" : ""}`}
-                                        />
+                                <div className="grid grid-cols-2 gap-2 items-start">
+                                    <div className="space-y-1">
+                                        <div className="relative flex-1">
+                                            <div className="absolute left-3 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-green-400" />
+                                            <Input
+                                                {...form.register(`questions.${index}.leftLabel`)}
+                                                placeholder="左: ゆったり"
+                                                className={`text-right pl-8 placeholder:text-muted-foreground/30 ${form.formState.errors.questions?.[index]?.leftLabel ? "border-red-500 focus-visible:ring-red-500 bg-red-50" : ""}`}
+                                            />
+                                        </div>
+                                        {form.formState.errors.questions?.[index]?.leftLabel && (
+                                            <p className="text-xs font-bold text-red-500 flex items-center gap-1 pl-1">
+                                                <span>⚠️</span> {form.formState.errors.questions[index]?.leftLabel?.message}
+                                            </p>
+                                        )}
                                     </div>
-                                    {form.formState.errors.questions?.[index]?.rightLabel && (
-                                        <p className="text-xs font-bold text-red-500 flex items-center gap-1 pl-1">
-                                            <span>⚠️</span> {form.formState.errors.questions[index]?.rightLabel?.message}
-                                        </p>
-                                    )}
+                                    <div className="space-y-1">
+                                        <div className="relative flex-1">
+                                            <div className="absolute right-3 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-purple-400" />
+                                            <Input
+                                                {...form.register(`questions.${index}.rightLabel`)}
+                                                placeholder="右: 詰め込み"
+                                                className={`pr-8 placeholder:text-muted-foreground/30 ${form.formState.errors.questions?.[index]?.rightLabel ? "border-red-500 focus-visible:ring-red-500 bg-red-50" : ""}`}
+                                            />
+                                        </div>
+                                        {form.formState.errors.questions?.[index]?.rightLabel && (
+                                            <p className="text-xs font-bold text-red-500 flex items-center gap-1 pl-1">
+                                                <span>⚠️</span> {form.formState.errors.questions[index]?.rightLabel?.message}
+                                            </p>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
+                            {/* 質問の間に挿入ボタン */}
+                            <button
+                                type="button"
+                                onClick={() => insertQuestion(index + 1, { text: "", leftLabel: "", rightLabel: "" })}
+                                className="w-full py-2 mt-2 border-2 border-dashed border-transparent hover:border-purple-300 rounded-lg text-muted-foreground/50 hover:text-purple-500 transition-all flex items-center justify-center gap-1 text-sm group"
+                            >
+                                <Plus className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <span className="opacity-0 group-hover:opacity-100 transition-opacity">ここに質問を追加</span>
+                            </button>
                         </div>
                     ))}
                     <Button

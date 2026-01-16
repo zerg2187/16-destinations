@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -89,17 +89,14 @@ interface RenameMemberDialogProps {
 export function RenameMemberDialog({ groupId, member, open, onOpenChange, onRefresh }: RenameMemberDialogProps) {
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
-    const [name, setName] = useState(member?.name || "");
+    const [name, setName] = useState("");
 
-    // Update local state when member changes
-    if (member && name !== member.name && !isLoading && !open) {
-        setName(member.name);
-    }
-
-    // Reset name when dialog opens
-    // Note: A better way is to use useEffect or key on Dialog, but this is simple enough for now
-    // Actually, let's use a key in the parent or useEffect here.
-    // For simplicity, we'll rely on the parent passing the correct member and key.
+    // Sync name state when member changes
+    useEffect(() => {
+        if (member) {
+            setName(member.name);
+        }
+    }, [member]);
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();

@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { verifyGroupPassword } from "@/lib/actions";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Lock, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
 interface PasswordGateProps {
@@ -49,7 +49,7 @@ export function PasswordGate({ groupId, children }: PasswordGateProps) {
     }
 
     if (isChecking) {
-        return null; // Or a loading spinner if preferred
+        return null;
     }
 
     if (isAuthenticated) {
@@ -58,10 +58,10 @@ export function PasswordGate({ groupId, children }: PasswordGateProps) {
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-background p-4">
-            <Card className="w-full max-w-md">
+            <Card className="w-full max-w-md border-l-4 border-l-orange-400 shadow-lg">
                 <CardHeader className="text-center">
-                    <div className="mx-auto bg-primary/10 w-12 h-12 rounded-full flex items-center justify-center mb-4">
-                        <Lock className="w-6 h-6 text-primary" />
+                    <div className="mx-auto bg-orange-100 w-12 h-12 rounded-full flex items-center justify-center mb-4">
+                        <Lock className="w-6 h-6 text-orange-600" />
                     </div>
                     <CardTitle>グループパスワードを入力</CardTitle>
                     <CardDescription>
@@ -69,15 +69,22 @@ export function PasswordGate({ groupId, children }: PasswordGateProps) {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        <Input
-                            type="text"
-                            placeholder="パスワード"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            autoComplete="off"
-                        />
-                        <Button type="submit" className="w-full" disabled={isLoading}>
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                        <div className="space-y-2">
+                            <Input
+                                type="text"
+                                placeholder="パスワード"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className="text-center text-lg tracking-widest placeholder:text-muted-foreground/50 placeholder:tracking-normal"
+                                autoComplete="off"
+                            />
+                        </div>
+                        <Button
+                            type="submit"
+                            className="w-full bg-gradient-to-r from-orange-500 to-pink-600 hover:from-orange-600 hover:to-pink-700 text-white font-bold shadow-md"
+                            disabled={isLoading}
+                        >
                             {isLoading ? (
                                 <>
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 確認中...

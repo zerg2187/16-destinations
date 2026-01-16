@@ -79,7 +79,7 @@ export function AdminView({ group, onRefresh }: AdminViewProps) {
                                 <span className="bg-purple-100 text-purple-600 p-2 rounded-lg">
                                     <BarChart3 className="w-5 h-5" />
                                 </span>
-                                価値観マップ
+                                結果
                             </CardTitle>
                             <CardDescription>
                                 メンバー全員の回答の平均値とばらつき（標準偏差）を表示しています。

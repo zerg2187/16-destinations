@@ -3,18 +3,14 @@
 import { useState } from "react";
 import { AnswerForm } from "@/components/answer-form";
 import { EditPasswordGate } from "@/components/edit-password-gate";
+import { Question } from "@/types";
 
 interface AnswerPageClientProps {
     groupId: string;
     memberId: string;
     memberName: string;
     memberStatus: string;
-    questions: {
-        id: string;
-        text: string;
-        leftLabel: string;
-        rightLabel: string;
-    }[];
+    questions: Question[];
 }
 
 export function AnswerPageClient({ groupId, memberId, memberName, memberStatus, questions }: AnswerPageClientProps) {

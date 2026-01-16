@@ -1,44 +1,40 @@
 import { cn } from "@/lib/utils";
 import { Check } from "lucide-react";
+import { Question } from "@/types";
+import { SCALE_MIN, SCALE_MAX, SCALE_CENTER } from "@/lib/constants";
 
 interface QuestionCardProps {
-    question: {
-        id: string;
-        text: string;
-        leftLabel: string;
-        rightLabel: string;
-    };
+    question: Question;
     value: number | undefined;
     onChange: (value: number) => void;
     error?: boolean;
 }
 
 export function QuestionCard({ question, value, onChange, error }: QuestionCardProps) {
-    // 1 to 7 scale
-    // 1-3 = Left (Green), 5-7 = Right (Purple), 4 = Neutral (Gray)
-    const options = [1, 2, 3, 4, 5, 6, 7];
+    // Generate options array from constants
+    const options = Array.from({ length: SCALE_MAX - SCALE_MIN + 1 }, (_, i) => SCALE_MIN + i);
 
     const getSizeClass = (val: number) => {
-        const dist = Math.abs(val - 4); // Distance from center (0 to 3)
+        const dist = Math.abs(val - SCALE_CENTER); // Distance from center (0 to 3)
         switch (dist) {
-            case 3: return "w-16 h-16 md:w-20 md:h-20"; // 1 & 7 (Largest)
-            case 2: return "w-14 h-14 md:w-16 md:h-16"; // 2 & 6
-            case 1: return "w-12 h-12 md:w-14 md:h-14"; // 3 & 5
-            case 0: return "w-10 h-10 md:w-12 md:h-12"; // 4 (Smallest, but still accessible)
-            default: return "w-10 h-10";
+            case 3: return "w-10 h-10 sm:w-12 sm:h-12 md:w-20 md:h-20"; // 1 & 7 (Largest)
+            case 2: return "w-9 h-9 sm:w-10 sm:h-10 md:w-16 md:h-16";   // 2 & 6
+            case 1: return "w-8 h-8 sm:w-9 sm:h-9 md:w-14 md:h-14";     // 3 & 5
+            case 0: return "w-7 h-7 sm:w-8 sm:h-8 md:w-12 md:h-12";     // 4 (Smallest)
+            default: return "w-8 h-8";
         }
     };
 
     const getBaseColorClass = (val: number) => {
-        if (val < 4) return "border-emerald-400 text-emerald-600"; // Green side
-        if (val > 4) return "border-violet-400 text-violet-600";   // Purple side
-        return "border-gray-400 text-gray-600";                    // Neutral
+        if (val < SCALE_CENTER) return "border-emerald-400 text-emerald-600"; // Green side
+        if (val > SCALE_CENTER) return "border-violet-400 text-violet-600";   // Purple side
+        return "border-gray-400 text-gray-600";                               // Neutral
     };
 
     const getSelectedColorClass = (val: number) => {
-        if (val < 4) return "bg-emerald-500 border-emerald-500 text-white"; // Green side
-        if (val > 4) return "bg-violet-500 border-violet-500 text-white";   // Purple side
-        return "bg-gray-500 border-gray-500 text-white";                    // Neutral
+        if (val < SCALE_CENTER) return "bg-emerald-500 border-emerald-500 text-white"; // Green side
+        if (val > SCALE_CENTER) return "bg-violet-500 border-violet-500 text-white";   // Purple side
+        return "bg-gray-500 border-gray-500 text-white";                               // Neutral
     };
 
     return (
@@ -69,10 +65,10 @@ export function QuestionCard({ question, value, onChange, error }: QuestionCardP
                             type="button"
                             onClick={() => onChange(opt)}
                             className={cn(
-                                "rounded-full border-2 transition-all duration-300 flex items-center justify-center shadow-sm bg-background hover:scale-110",
+                                "rounded-full border-2 transition-all duration-300 flex items-center justify-center shadow-sm bg-background hover:scale-110 flex-shrink-0",
                                 getSizeClass(opt),
                                 isSelected ? getSelectedColorClass(opt) : getBaseColorClass(opt),
-                                isSelected ? "ring-4 ring-offset-2 ring-offset-background scale-110 shadow-md" : "hover:border-opacity-80"
+                                isSelected ? "ring-2 md:ring-4 ring-offset-2 ring-offset-background scale-110 shadow-md" : "hover:border-opacity-80"
                             )}
                             aria-label={`選択肢 ${opt}`}
                         >

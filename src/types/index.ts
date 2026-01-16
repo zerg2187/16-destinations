@@ -8,7 +8,7 @@ export interface Question {
 export interface Member {
     id: string;
     name: string;
-    status: string; // "pending" | "completed"
+    status: "pending" | "completed";
     // editPassword removed - stored in secrets
     answers?: Record<string, number>;
     updatedAt?: string;

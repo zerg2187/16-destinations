@@ -1,49 +1,30 @@
 "use client";
 
 import { Star } from "lucide-react";
+import { Question } from "@/types";
+import { calculateStats } from "@/lib/statistics";
+import { SCALE_MIN, SCALE_MAX } from "@/lib/constants";
 
 interface ResultsChartProps {
-    questions: {
-        id: string;
-        text: string;
-        leftLabel: string;
-        rightLabel: string;
-    }[];
+    questions: Question[];
     members: {
         answers?: Record<string, number>;
     }[];
 }
 
 export function ResultsChart({ questions, members }: ResultsChartProps) {
+    const scaleRange = SCALE_MAX - SCALE_MIN; // 6
+
     const data = questions.map((q) => {
         const answers = members
             .map((m) => m.answers?.[q.id])
             .filter((a): a is number => a !== undefined);
 
-        if (answers.length === 0) {
-            return {
-                ...q,
-                avg: 4, // Default to center
-                stdDev: 0,
-                count: 0,
-                hasAnswers: false,
-            };
-        }
-
-        const sum = answers.reduce((acc, val) => acc + val, 0);
-        const avg = sum / answers.length;
-
-        const variance =
-            answers.reduce((acc, val) => acc + Math.pow(val - avg, 2), 0) /
-            answers.length;
-        const stdDev = Math.sqrt(variance);
+        const stats = calculateStats(answers);
 
         return {
             ...q,
-            avg: avg,
-            stdDev: stdDev,
-            count: answers.length,
-            hasAnswers: true,
+            ...stats,
         };
     });
 
@@ -91,7 +72,7 @@ export function ResultsChart({ questions, members }: ResultsChartProps) {
                                 <div
                                     key={tick}
                                     className="absolute top-0 bottom-0 w-px bg-white/50 first:hidden last:hidden"
-                                    style={{ left: `${((tick - 1) / 6) * 100}%` }}
+                                    style={{ left: `${((tick - SCALE_MIN) / scaleRange) * 100}%` }}
                                 />
                             ))}
                         </div>
@@ -102,15 +83,15 @@ export function ResultsChart({ questions, members }: ResultsChartProps) {
                                 <div
                                     className="absolute top-10 h-3 bg-foreground/10 rounded-full transition-all duration-500"
                                     style={{
-                                        left: `${Math.max(0, ((item.avg - item.stdDev - 1) / 6) * 100)}%`,
-                                        width: `${Math.min(100, (item.stdDev * 2 / 6) * 100)}%`,
+                                        left: `${Math.max(0, ((item.avg - item.stdDev - SCALE_MIN) / scaleRange) * 100)}%`,
+                                        width: `${Math.min(100, (item.stdDev * 2 / scaleRange) * 100)}%`,
                                     }}
                                 />
 
                                 {/* Average Marker */}
                                 <div
                                     className="absolute top-8 -ml-4 flex flex-col items-center transition-all duration-500 z-10"
-                                    style={{ left: `${((item.avg - 1) / 6) * 100}%` }}
+                                    style={{ left: `${((item.avg - SCALE_MIN) / scaleRange) * 100}%` }}
                                 >
                                     <div className="bg-white p-1 rounded-full shadow-md border-2 border-orange-400">
                                         <Star className="w-6 h-6 text-orange-500 fill-orange-500" />

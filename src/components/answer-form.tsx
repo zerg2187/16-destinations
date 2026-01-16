@@ -13,18 +13,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Loader2, User, MessageCircle, Lock, ArrowRight, ArrowLeft } from "lucide-react";
+import { Loader2, User, MessageCircle, Lock, ArrowRight, ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { Question } from "@/types";
 
 interface AnswerFormProps {
     groupId: string;
     memberId: string;
     memberName: string;
-    questions: {
-        id: string;
-        text: string;
-        leftLabel: string;
-        rightLabel: string;
-    }[];
+    questions: Question[];
     initialAnswers?: Record<string, number>;
     initialEditPassword?: string;
 }
@@ -81,6 +77,9 @@ export function AnswerForm({ groupId, memberId, memberName, questions, initialAn
         }
     };
 
+    const [showPassword, setShowPassword] = useState(false);
+    const isEditing = Object.keys(initialAnswers).length > 0;
+
     async function onSubmit(data: AnswerSchema) {
         // Validate that all questions are answered
         const currentUnansweredIds = questions
@@ -109,7 +108,8 @@ export function AnswerForm({ groupId, memberId, memberName, questions, initialAn
         try {
             const user = auth.currentUser;
             const idToken = user ? await user.getIdToken() : undefined;
-            const result = await submitAnswer(groupId, memberId, data.answers, data.editPassword, idToken);
+            // Pass initialEditPassword as currentPassword for verification
+            const result = await submitAnswer(groupId, memberId, data.answers, data.editPassword, idToken, initialEditPassword);
 
             if (result.success) {
                 toast.success("回答を送信しました！");
@@ -189,10 +189,12 @@ export function AnswerForm({ groupId, memberId, memberName, questions, initialAn
                         <span className="bg-orange-100 text-orange-600 p-2 rounded-lg">
                             <Lock className="w-5 h-5" />
                         </span>
-                        送信前の確認
+                        {isEditing ? "編集用パスワードの変更" : "送信前の確認"}
                     </CardTitle>
                     <CardDescription>
-                        回答を後で修正するために、6桁の数字パスワードを設定（または入力）してください。
+                        {isEditing
+                            ? "次回以降の編集に使用するパスワードを変更できます（変更しない場合はそのままでOK）"
+                            : "回答を後で修正するために、6桁の数字パスワードを設定（または入力）してください。"}
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -202,14 +204,25 @@ export function AnswerForm({ groupId, memberId, memberName, questions, initialAn
                             <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                             <Input
                                 id="editPassword"
-                                type="password"
+                                type={showPassword ? "text" : "password"}
                                 inputMode="numeric"
                                 maxLength={6}
                                 placeholder="（数字6桁）"
                                 {...form.register("editPassword")}
-                                className="pl-9 text-center text-lg tracking-widest placeholder:text-muted-foreground/50 placeholder:tracking-normal"
+                                className="pl-9 pr-10 text-center text-lg tracking-widest placeholder:text-muted-foreground/50 placeholder:tracking-normal"
                                 autoComplete="off"
                             />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute right-3 top-3 text-muted-foreground hover:text-foreground focus:outline-none"
+                            >
+                                {showPassword ? (
+                                    <EyeOff className="h-4 w-4" />
+                                ) : (
+                                    <Eye className="h-4 w-4" />
+                                )}
+                            </button>
                         </div>
                         {form.formState.errors.editPassword && (
                             <p className="text-sm font-bold text-red-500 flex items-center gap-1">

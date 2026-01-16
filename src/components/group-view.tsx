@@ -21,15 +21,15 @@ interface GroupViewProps {
 export function GroupView({ group }: GroupViewProps) {
     return (
         <div className="space-y-8 max-w-4xl mx-auto py-10 px-4">
-            <div className="flex justify-between items-start">
-                <div className="space-y-2">
+            <div className="flex justify-between items-start gap-4">
+                <div className="space-y-2 min-w-0 flex-1">
                     <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
-                        <span className="bg-orange-100 text-orange-600 p-2 rounded-lg">
+                        <span className="bg-orange-100 text-orange-600 p-2 rounded-lg shrink-0">
                             <MapIcon className="w-8 h-8" />
                         </span>
-                        {group.name}
+                        <span className="break-words">{group.name}</span>
                     </h1>
-                    <p className="text-muted-foreground">{group.description}</p>
+                    <p className="text-muted-foreground break-words whitespace-pre-wrap">{group.description}</p>
                 </div>
                 <Button variant="outline" size="sm" asChild className="border-dashed border-2 hover:border-orange-400 hover:text-orange-600 hover:bg-orange-50">
                     <Link href={`/g/${group.id}/admin`}>

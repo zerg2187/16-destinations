@@ -47,7 +47,7 @@ export function GroupView({ group }: GroupViewProps) {
                         メンバーを選択して回答
                     </CardTitle>
                     <CardDescription>
-                        あなたの名前を選んで、価値観アンケートに答えてください。
+                        あなたの名前を選んで、アンケートに答えてください。
                     </CardDescription>
                 </CardHeader>
                 <CardContent>

@@ -45,18 +45,7 @@ export async function createGroup(data: CreateGroupSchema, adminUid?: string) {
         // 2. Create Secrets Document (Private Data)
         const secretsRef = groupRef.collection("secrets").doc("admin_auth");
         await secretsRef.set({
-            groupPassword, // Stored as plain text per requirements ("simple_string") - wait, requirements said simple string, but architecture doc says hash. 
-            // The user's architecture doc says: "groupPasswordHash": "hash_xxxx". 
-            // But the original requirement was "simple_string" for group password and hashed for admin.
-            // However, to be safe and consistent with "Secrets", I should probably hash them if the architecture doc implies it.
-            // The architecture doc example shows: "groupPasswordHash": "hash_xxxx".
-            // BUT, the `verifyGroupPassword` logic in the prompt compares `data.groupPassword !== password`.
-            // I will stick to the original logic for groupPassword (plain text) BUT put it in secrets, 
-            // OR if I strictly follow the "Server-Authoritative" doc, it says "groupPasswordHash".
-            // Let's look at the user's prompt again: "groupPasswordHash": "hash_xxxx".
-            // Okay, I will hash the group password too for better security since we are refactoring.
-            // Wait, if I hash it, I need to update verifyGroupPassword to hash the input before comparing.
-            // Let's do that. It's better security.
+            // Stored as hash for security
             groupPasswordHash: hashPassword(groupPassword),
             adminPasswordHash: hashPassword(adminPassword),
         });

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useForm, Controller, FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { answerSchema, AnswerSchema } from "@/lib/schemas";
@@ -129,9 +130,9 @@ export function AnswerForm({ groupId, memberId, memberName, questions, initialAn
             <div className="space-y-4 text-center">
                 <div className="flex justify-start">
                     <Button variant="ghost" asChild className="text-muted-foreground hover:text-foreground">
-                        <a href={`/g/${groupId}`}>
+                        <Link href={`/g/${groupId}`}>
                             <ArrowLeft className="mr-2 h-4 w-4" /> グループページに戻る
-                        </a>
+                        </Link>
                     </Button>
                 </div>
                 <div>
@@ -153,7 +154,7 @@ export function AnswerForm({ groupId, memberId, memberName, questions, initialAn
                         <span className="bg-purple-100 text-purple-600 p-2 rounded-lg">
                             <MessageCircle className="w-5 h-5" />
                         </span>
-                        価値観の質問
+                        質問
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="divide-y">

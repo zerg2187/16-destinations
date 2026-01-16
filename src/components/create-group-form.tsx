@@ -230,7 +230,7 @@ export function CreateGroupForm() {
                         <span className="bg-purple-100 text-purple-600 p-2 rounded-lg">
                             <MessageCircle className="w-5 h-5" />
                         </span>
-                        価値観の質問
+                        質問
                     </CardTitle>
                     <CardDescription>
                         7段階で答えてもらう質問を設定します。左と右に対立する概念を入力してください。

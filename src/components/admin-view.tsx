@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import Link from "next/link";
 import { ResultsChart } from "@/components/results-chart";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,9 +39,9 @@ export function AdminView({ group, onRefresh }: AdminViewProps) {
             <div className="space-y-4">
                 <div className="flex justify-start">
                     <Button variant="ghost" asChild className="text-muted-foreground hover:text-foreground">
-                        <a href={`/g/${group.id}`}>
+                        <Link href={`/g/${group.id}`}>
                             <ArrowLeft className="mr-2 h-4 w-4" /> グループページに戻る
-                        </a>
+                        </Link>
                     </Button>
                 </div>
                 <div>

@@ -1,15 +1,20 @@
 "use client";
 
 import { Star } from "lucide-react";
-import { Question } from "@/types";
+import { Question, Member } from "@/types";
 import { calculateStats } from "@/lib/statistics";
 import { SCALE_MIN, SCALE_MAX } from "@/lib/constants";
 
 interface ResultsChartProps {
     questions: Question[];
-    members: {
-        answers?: Record<string, number>;
-    }[];
+    members: Member[];
+}
+
+// グループ化されたドットデータ
+interface DotData {
+    value: number;
+    memberName: string;
+    stackIndex: number;
 }
 
 export function ResultsChart({ questions, members }: ResultsChartProps) {
@@ -22,9 +27,33 @@ export function ResultsChart({ questions, members }: ResultsChartProps) {
 
         const stats = calculateStats(answers);
 
+        // ドットプロット用のデータを作成（同じ値の回答は縦に積み重ねる）
+        const valueGroups: Record<number, string[]> = {};
+        members.forEach((m) => {
+            const answer = m.answers?.[q.id];
+            if (answer !== undefined) {
+                if (!valueGroups[answer]) {
+                    valueGroups[answer] = [];
+                }
+                valueGroups[answer].push(m.name);
+            }
+        });
+
+        const dots: DotData[] = [];
+        Object.entries(valueGroups).forEach(([value, names]) => {
+            names.forEach((name, stackIndex) => {
+                dots.push({
+                    value: Number(value),
+                    memberName: name,
+                    stackIndex,
+                });
+            });
+        });
+
         return {
             ...q,
             ...stats,
+            dots,
         };
     });
 
@@ -79,24 +108,66 @@ export function ResultsChart({ questions, members }: ResultsChartProps) {
 
                         {item.hasAnswers ? (
                             <>
-                                {/* Variance Range Bar */}
-                                <div
-                                    className="absolute top-10 h-3 bg-foreground/10 rounded-full transition-all duration-500"
-                                    style={{
-                                        left: `${Math.max(0, ((item.avg - item.stdDev - SCALE_MIN) / scaleRange) * 100)}%`,
-                                        width: `${Math.min(100, (item.stdDev * 2 / scaleRange) * 100)}%`,
-                                    }}
-                                />
+                                {/* Dot Plot - Individual Response Dots */}
+                                <div className="absolute top-6 left-0 right-0 h-20 pointer-events-none">
+                                    {item.dots.map((dot, idx) => {
+                                        // イニシャルを取得
+                                        const getInitial = (name: string) => {
+                                            return name.charAt(0).toUpperCase();
+                                        };
+
+                                        return (
+                                            <div
+                                                key={`${dot.memberName}-${idx}`}
+                                                className="absolute pointer-events-auto group"
+                                                style={{
+                                                    left: `${((dot.value - SCALE_MIN) / scaleRange) * 100}%`,
+                                                    bottom: `${dot.stackIndex * 18 + 4}px`,
+                                                    transform: "translateX(-50%)",
+                                                }}
+                                            >
+                                                {/* Dot with gradient and initial */}
+                                                <div
+                                                    className="
+                                                        w-6 h-6 md:w-7 md:h-7 rounded-full 
+                                                        bg-gradient-to-br from-teal-400 to-cyan-500
+                                                        shadow-md shadow-teal-200 hover:shadow-lg
+                                                        flex items-center justify-center
+                                                        text-white text-xs md:text-sm font-bold
+                                                        border-2 border-white
+                                                        hover:scale-110 hover:-translate-y-0.5
+                                                        transition-all duration-200 cursor-pointer
+                                                        ring-0 hover:ring-2 hover:ring-offset-1 hover:ring-orange-300
+                                                    "
+                                                >
+                                                    {getInitial(dot.memberName)}
+                                                </div>
+                                                {/* Tooltip */}
+                                                <div
+                                                    className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5
+                                                               bg-foreground text-background text-xs font-medium rounded-lg
+                                                               opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-20
+                                                               pointer-events-none shadow-lg"
+                                                >
+                                                    <span className="font-bold">{dot.memberName}</span>
+                                                    <span className="text-background/70 ml-1">({dot.value})</span>
+                                                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-foreground" />
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
 
                                 {/* Average Marker */}
                                 <div
-                                    className="absolute top-8 -ml-4 flex flex-col items-center transition-all duration-500 z-10"
+                                    className="absolute top-28 -ml-4 flex flex-col items-center transition-all duration-500 z-10"
                                     style={{ left: `${((item.avg - SCALE_MIN) / scaleRange) * 100}%` }}
                                 >
-                                    <div className="bg-white p-1 rounded-full shadow-md border-2 border-orange-400">
-                                        <Star className="w-6 h-6 text-orange-500 fill-orange-500" />
+                                    <div className="w-0.5 h-4 bg-orange-400" />
+                                    <div className="bg-white p-1.5 rounded-full shadow-lg border-2 border-orange-400">
+                                        <Star className="w-5 h-5 md:w-6 md:h-6 text-orange-500 fill-orange-500" />
                                     </div>
-                                    <div className="w-0.5 h-3 bg-orange-400" />
+                                    <span className="text-xs font-bold text-orange-600 mt-0.5">平均</span>
                                 </div>
                             </>
                         ) : (
@@ -105,6 +176,9 @@ export function ResultsChart({ questions, members }: ResultsChartProps) {
                             </div>
                         )}
                     </div>
+
+                    {/* Spacer for average marker when there are answers */}
+                    {item.hasAnswers && <div className="h-16" />}
                 </div>
             ))}
         </div>

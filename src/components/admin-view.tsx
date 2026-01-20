@@ -83,7 +83,7 @@ export function AdminView({ group, onRefresh }: AdminViewProps) {
                                 結果
                             </CardTitle>
                             <CardDescription>
-                                メンバー全員の回答の平均値とばらつき（標準偏差）を表示しています。
+                                各回答者の回答を点でプロット。点にホバーすると名前が表示されます。
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
